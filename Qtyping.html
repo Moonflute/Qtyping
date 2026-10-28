@@ -94,6 +94,22 @@
     #file-status.changed { color: #8b3c00; font-weight: bold; }
     #empty-state { padding: 40px 0; }
     footer { margin-top: 25px; padding-top: 10px; border-top: 1px solid #ddd; }
+    @media screen and (min-width: 901px) {
+      body.writing-view { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+      .writing-view > header { flex-shrink: 0; }
+      .writing-view .layout { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+      .writing-view aside { min-height: 0; overflow-y: auto; }
+      .writing-view main { display: flex; flex-direction: column; min-height: 0; }
+      .writing-view #recovery, .writing-view #status { flex-shrink: 0; }
+      .writing-view #use-view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+      .writing-view #use-view > .row { flex-shrink: 0; }
+      .writing-view .workspace { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+      .writing-view .input-panel, .writing-view .preview { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+      .writing-view .input-panel > .row, .writing-view .preview > .row, .writing-view #output-hint { flex-shrink: 0; }
+      .writing-view #form-fields { flex: 1; min-height: 0; padding-right: 8px; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+      .writing-view #output { flex: 1; min-height: 0; resize: none; }
+      .writing-view footer { flex-shrink: 0; max-height: 25vh; overflow-y: auto; }
+    }
     @media (max-width: 900px) { .workspace, .editor-grid { grid-template-columns: 1fr; } #output { min-height: 220px; } }
     @media (max-width: 560px) { header { padding: 10px 12px; } .layout { grid-template-columns: 1fr; } aside { grid-column: 1; grid-row: 1; border-right: 0; border-bottom: 1px solid #ccc; padding: 10px 12px; } aside input { margin: 5px 0; } main { grid-column: 1; grid-row: 2; padding: 14px 12px 30px; } }
     @media print { header, aside, #form-fields, .workspace > :first-child, button, footer, .notice, #status, #output-hint { display: none; } .layout, .workspace { display: block; } main { padding: 0; } #output { border: 0; height: auto; } }
@@ -158,7 +174,7 @@
           <button id="edit-template" class="small-button" type="button">편집</button>
         </div>
         <div class="workspace">
-          <section aria-label="항목 입력">
+          <section class="input-panel" aria-label="항목 입력">
             <div class="row spread"><h3>입력 / 선택</h3><button id="clear-inputs" type="button">입력 초기화</button></div>
             <div id="form-fields"></div>
           </section>
@@ -503,6 +519,7 @@
     function render() {
       closeFieldSuggestions();
       renderList(); updateFileStatus();
+      document.body.classList.toggle('writing-view', !!current() && !draft);
       $('edit-view').hidden = !draft;
       $('empty-state').hidden = !!current() || !!draft;
       $('use-view').hidden = !current() || !!draft;
