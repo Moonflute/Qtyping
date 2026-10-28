@@ -52,6 +52,7 @@
     .field { margin-bottom: 20px; }
     .field > label, .field > legend { display: block; font-weight: bold; margin-bottom: 5px; }
     .field input[type=text], .field select { width: 100%; }
+    .field textarea { display: block; resize: none; overflow: hidden; }
     fieldset.field { padding: 0; border: 0; min-width: 0; }
     .choice { display: inline-flex; align-items: baseline; gap: 4px; margin: 3px 16px 3px 0; overflow-wrap: anywhere; }
     .preview { min-width: 0; }
@@ -470,6 +471,16 @@
       library.activeId = templateId; render();
     }
 
+    function resizeAnswerInput(input) {
+      input.style.height = 'auto';
+      if (!input.value || !input.clientWidth) return;
+      input.style.height = (input.scrollHeight + input.offsetHeight - input.clientHeight) + 'px';
+    }
+
+    function resizeAnswerInputs() {
+      $('form-fields').querySelectorAll('textarea').forEach(resizeAnswerInput);
+    }
+
     function render() {
       closeFieldSuggestions();
       renderList(); updateFileStatus();
@@ -503,13 +514,13 @@
           const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'small-button'; clear.textContent = '선택 해제'; clear.setAttribute('aria-label', field.label + ' 선택 해제');
           clear.addEventListener('click', () => { delete answers[field.id]; group.querySelectorAll('input').forEach((node) => { node.checked = false; }); updateOutput(); }); group.append(clear);
         } else {
-          const input = document.createElement('textarea'); input.rows = 3;
+          const input = document.createElement('textarea'); input.rows = 1;
           input.id = controlId; input.placeholder = field.placeholder; input.value = answers[field.id] || ''; input.autocomplete = 'off';
-          input.addEventListener('input', () => { answers[field.id] = input.value; updateOutput(); }); group.append(input);
+          input.addEventListener('input', () => { answers[field.id] = input.value; resizeAnswerInput(input); updateOutput(); }); group.append(input);
         }
         form.append(group);
       });
-      updateOutput();
+      resizeAnswerInputs(); updateOutput();
     }
 
     function renderDocument(template, values) {
@@ -948,7 +959,7 @@
     $('body-editor').addEventListener('compositionstart', () => { bodyComposing = true; closeFieldSuggestions(); });
     $('body-editor').addEventListener('compositionend', () => { bodyComposing = false; updateFieldSuggestions(); });
     $('body-editor').addEventListener('scroll', positionFieldSuggestions);
-    window.addEventListener('resize', positionFieldSuggestions);
+    window.addEventListener('resize', () => { positionFieldSuggestions(); resizeAnswerInputs(); });
     document.addEventListener('pointerdown', (event) => { if (!$('body-editor').parentElement.contains(event.target)) closeFieldSuggestions(); });
     document.querySelectorAll('[data-add-type]').forEach((button) => button.addEventListener('click', () => addField(button.dataset.addType)));
     $('apply-template').addEventListener('click', () => applyEditor());
