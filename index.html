@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>양식 메모장</title>
+  <title>Qtyping</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; color: #222; background: #fff; font: 14px/1.65 Arial, 'Malgun Gothic', sans-serif; }
@@ -93,7 +93,7 @@
   <header>
     <div class="row spread">
       <div class="row">
-        <h1>양식 메모장</h1>
+        <h1>Qtyping</h1>
         <div class="row toolbar" role="group" aria-label="파일">
       <button id="save-html" class="icon-button" type="button" aria-label="저장" title="저장 — 현재 HTML 파일에 덮어쓰기 (Ctrl+S)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg>
@@ -305,7 +305,7 @@
       $('file-status').className = 'muted' + (dirty ? ' changed' : '');
       $('save-html').disabled = saving;
       $('save-html').setAttribute('aria-busy', String(saving));
-      document.title = (dirty ? '* ' : '') + '양식 메모장';
+      document.title = (dirty ? '* ' : '') + 'Qtyping';
     }
     function current() { return library.templates.find((item) => item.id === library.activeId) || null; }
     function hasAnswers() { return Object.values(answers).some((value) => Array.isArray(value) ? value.length > 0 : String(value).length > 0); }
@@ -805,7 +805,7 @@
 
     function libraryFromHtml(text) {
       const match = text.match(/<script\b[^>]*\bid\s*=\s*["']saved-data["'][^>]*>([\s\S]*?)<\/script\s*>/i);
-      if (!match) throw new Error('양식 메모장의 HTML 파일을 선택하세요.');
+      if (!match) throw new Error('Qtyping의 HTML 파일을 선택하세요.');
       return readLibrary(JSON.parse(match[1]));
     }
 
@@ -937,7 +937,7 @@
     $('save-html').addEventListener('click', saveHtml);
     $('copy-output').addEventListener('click', copyOutput);
     $('clear-inputs').addEventListener('click', () => { if (hasAnswers() && !confirm('현재 입력·선택한 내용을 모두 초기화할까요?')) return; answers = Object.create(null); render(); status('입력 내용을 초기화했습니다.'); });
-    $('export-json').addEventListener('click', () => { if (!applyEditor(false)) return; download(JSON.stringify(portableData(), null, 2), '양식메모장-백업.json', 'application/json;charset=utf-8'); status('양식 설정을 JSON으로 백업했습니다.'); });
+    $('export-json').addEventListener('click', () => { if (!applyEditor(false)) return; download(JSON.stringify(portableData(), null, 2), 'Qtyping-백업.json', 'application/json;charset=utf-8'); status('양식 설정을 JSON으로 백업했습니다.'); });
     $('import-json').addEventListener('click', () => $('import-file').click());
     $('import-file').addEventListener('change', (event) => importJson(event.target.files?.[0]));
     $('recover').addEventListener('click', () => { if (!recoverable) return; library = recoverable; answers = Object.create(null); markChanged(); $('recovery').hidden = true; render(); status('양식 변경사항을 복구했습니다. HTML로 저장해두세요.'); });
