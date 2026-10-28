@@ -140,7 +140,10 @@
       </section>
 
       <section id="use-view" aria-label="문서 작성">
-        <h2 id="current-title"></h2>
+        <div class="row">
+          <h2 id="current-title"></h2>
+          <button id="edit-template" type="button">양식 편집</button>
+        </div>
         <div class="workspace">
           <section aria-label="항목 입력">
             <div class="row spread"><h3>입력 / 선택</h3><button id="clear-inputs" type="button">입력 초기화</button></div>
@@ -194,7 +197,7 @@
         <details>
           <summary>사용법 / 저장 방법</summary>
           <ol>
-            <li><strong>새 양식</strong>을 만들거나 왼쪽 목록의 양식 이름 옆 <strong>편집(연필) 아이콘</strong>을 누릅니다.</li>
+            <li><strong>새 양식</strong>을 만들거나 작업 영역의 양식 이름 옆 <strong>양식 편집</strong> 버튼을 누릅니다.</li>
             <li>주관식·객관식 항목과 선택지를 설정하고, 문서 틀에 <strong>[항목 이름]</strong>을 넣습니다. 항목 버튼을 누르거나 <strong>@ 뒤에 항목 이름 일부</strong>를 입력해 선택할 수 있습니다.</li>
             <li><strong>편집 완료</strong> 후 입력·체크하면 완성본이 바로 바뀝니다. <strong>복사</strong>해서 사용하세요.</li>
             <li>양식을 변경했다면 제목 옆의 <strong>저장 아이콘</strong>을 누릅니다. 처음에는 <strong>지금 열어둔 HTML 파일</strong>을 선택하고 브라우저의 쓰기 권한을 허용하세요. 이후에는 선택한 파일 자체에 저장합니다.</li>
@@ -345,7 +348,7 @@
           }
         });
         const actions = document.createElement('div'); actions.className = 'template-actions';
-        actions.append(listIcon('edit', item.title + ' 편집', () => beginEdit(false, item.id)), listIcon('duplicate', item.title + ' 복제', () => duplicateTemplate(item.id)), listIcon('trash', item.title + ' 휴지통으로 이동', () => trashTemplate(item.id)));
+        actions.append(listIcon('duplicate', item.title + ' 복제', () => duplicateTemplate(item.id)), listIcon('trash', item.title + ' 휴지통으로 이동', () => trashTemplate(item.id)));
         row.append(button, actions); list.append(row);
       }
       if (!items.length) { const hint = document.createElement('p'); hint.className = 'muted'; hint.textContent = search ? '검색 결과가 없습니다.' : '저장된 양식이 없습니다.'; list.append(hint); }
@@ -387,7 +390,6 @@
 
     function listIcon(action, label, handler) {
       const paths = {
-        edit: '<path d="m16 3 5 5M4 20l5-1L21 7l-5-5L4 14l-1 7 6-2"/>',
         duplicate: '<rect x="8" y="8" width="12" height="13" rx="1"/><path d="M16 8V3H3v13h5"/>',
         trash: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>',
         restore: '<path d="M3 10h11a6 6 0 0 1 0 12h-3M3 10l5-5M3 10l5 5"/>',
@@ -900,6 +902,7 @@
 
     $('new-template').addEventListener('click', () => beginEdit(true));
     $('empty-new').addEventListener('click', () => beginEdit(true));
+    $('edit-template').addEventListener('click', () => beginEdit());
     $('search').addEventListener('input', (event) => { search = event.target.value; renderList(); });
     $('template-list').addEventListener('dragover', (event) => {
       if (!draggedTemplateId) return;
