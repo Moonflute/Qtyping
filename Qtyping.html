@@ -83,6 +83,9 @@
     .field-suggestion-empty { padding: 7px 9px; }
     #token-buttons { display: flex; gap: 5px; flex-wrap: wrap; margin: 8px 0; }
     #token-buttons button { padding: 1px 6px; }
+    #particle-review-list { display: grid; gap: 4px; max-height: 180px; overflow-y: auto; margin-top: 6px; }
+    #particle-review-list button { font-size: 12px; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .particle-context { color: inherit; background: #fff3c4; }
     .editor-actions { margin-bottom: 12px; }
     details { margin-top: 12px; }
     summary { cursor: pointer; }
@@ -193,6 +196,12 @@
             </div>
             <p id="template-check" class="muted" aria-live="polite"></p>
             <p class="muted">항목 이름을 바꾸면 문서 틀의 [항목 이름]도 함께 바뀝니다.</p>
+            <p class="muted">항목 뒤의 을/를·은/는·이/가·과/와·으로/로는 입력한 내용에 맞춰 자동으로 바뀝니다.</p>
+            <details id="particle-review" open hidden>
+              <summary>항목 뒤 문구 확인</summary>
+              <p class="muted">조사가 없는 부분에도 연결 문구를 강조합니다. 눌러서 문서 틀을 확인하세요.</p>
+              <div id="particle-review-list"></div>
+            </details>
           </section>
         </div>
       </section>
@@ -235,6 +244,13 @@
     const MAX_TRASH = 5000;
     const MAX_FIELDS = 100;
     const tokenPattern = /\[([^\[\]\r\n]+)\]/g;
+    const particlePairs = [
+      { consonant: '으로', vowel: '로', rieul: true },
+      { consonant: '을', vowel: '를' },
+      { consonant: '은', vowel: '는' },
+      { consonant: '이', vowel: '가' },
+      { consonant: '과', vowel: '와' },
+    ];
 
     function normalizeTemplate(raw, usedIds = new Set()) {
       if (!raw || typeof raw !== 'object' || typeof raw.title !== 'string' || typeof raw.body !== 'string' || !Array.isArray(raw.fields)) throw new Error('양식 파일 형식이 올바르지 않습니다.');
@@ -529,18 +545,66 @@
     function renderDocument(template, values) {
       const fields = new Map(template.fields.map((field) => [field.label, field]));
       const unknown = new Set();
-      const text = template.body.replace(tokenPattern, (match, name) => {
-        const field = fields.get(name.trim());
-        if (!field) { unknown.add(name); return match; }
+      const particleChecks = new Set();
+      let text = ''; let cursor = 0;
+      for (const match of template.body.matchAll(tokenPattern)) {
+        text += template.body.slice(cursor, match.index);
+        cursor = match.index + match[0].length;
+        const field = fields.get(match[1].trim());
+        if (!field) { unknown.add(match[1]); text += match[0]; continue; }
         const answer = values[field.id];
+        let value;
         if (field.type === 'multi') {
           const selected = field.options.filter((option) => Array.isArray(answer) && answer.includes(option));
-          return selected.length ? selected.join(field.separator) : field.emptyText;
+          value = selected.length ? selected.join(field.separator) : field.emptyText;
+        } else if (field.type === 'single' && !field.options.includes(answer)) {
+          value = field.emptyText;
+        } else {
+          value = typeof answer === 'string' && answer.length ? answer : field.emptyText;
         }
-        if (field.type === 'single' && !field.options.includes(answer)) return field.emptyText;
-        return typeof answer === 'string' && answer.length ? answer : field.emptyText;
-      });
-      return { text, unknown: [...unknown] };
+        text += value;
+        const particle = particleAfter(template.body.slice(cursor, cursor + 32));
+        if (particle) {
+          const ending = finalConsonant(value);
+          if (ending === null) {
+            text += particle.source;
+            if (value.trim()) particleChecks.add(field.label);
+          } else {
+            text += ending === 0 || (particle.rieul && ending === 8) ? particle.vowel : particle.consonant;
+          }
+          cursor += particle.source.length;
+        }
+      }
+      text += template.body.slice(cursor);
+      return { text, unknown: [...unknown], particleChecks: [...particleChecks] };
+    }
+
+    function particleAfter(suffix) {
+      for (const pair of particlePairs) {
+        for (const source of [pair.consonant + '/' + pair.vowel, pair.vowel + '/' + pair.consonant]) {
+          if (suffix.startsWith(source)) return { ...pair, source };
+        }
+        for (const source of [pair.consonant, pair.vowel]) {
+          if (!suffix.startsWith(source)) continue;
+          const rest = suffix.slice(source.length);
+          const boundary = !rest || /^[\s\p{P}\p{S}]/u.test(rest);
+          const attached = /^(?:도|만|는|요|부터|까지|조차|마저)(?=$|[\s\p{P}\p{S}])/u.test(rest);
+          const role = pair.rieul && /^(?:서|써)(?=$|[\s\p{P}\p{S}])/u.test(rest);
+          if (boundary || attached || role) return { ...pair, source };
+        }
+      }
+      return null;
+    }
+
+    function finalConsonant(value) {
+      const last = value.normalize('NFC').replace(/[\s'"’”\)\]\}.!?…,;:〉》」』]+$/u, '').slice(-1);
+      const code = last.charCodeAt(0);
+      if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28;
+      if (/^\d$/.test(last)) return [1, 8, 0, 1, 0, 0, 1, 8, 8, 0][Number(last)];
+      if (last === 'ㄹ') return 8;
+      if (/^[ㄱ-ㅎ]$/u.test(last)) return 1;
+      if (/^[ㅏ-ㅣ]$/u.test(last)) return 0;
+      return null;
     }
 
     function updateOutput() {
@@ -549,6 +613,7 @@
       $('output').value = result.text;
       $('copy-output').disabled = !result.text.trim();
       $('output-hint').textContent = result.unknown.length ? '등록되지 않은 항목: ' + result.unknown.map((name) => '[' + name + ']').join(', ') + ' — 양식 편집에서 확인하세요.' : result.text.length + '자 · 입력·선택한 내용이 실시간 반영됩니다.';
+      if (result.particleChecks.length) $('output-hint').textContent += ' · 조사 발음 확인: ' + result.particleChecks.map((name) => '[' + name + ']').join(', ');
       $('output-hint').className = 'muted' + (result.unknown.length ? ' error' : '');
     }
 
@@ -756,6 +821,29 @@
       const unknown = renderDocument(draft, {}).unknown;
       $('template-check').textContent = unknown.length ? '미등록 항목: ' + unknown.map((name) => '[' + name + ']').join(', ') : '등록된 항목 ' + draft.fields.length + '개';
       $('template-check').className = 'muted' + (unknown.length ? ' error' : '');
+      renderParticleReview();
+    }
+
+    function renderParticleReview() {
+      const list = $('particle-review-list'); list.replaceChildren();
+      const names = new Set(draft.fields.map((field) => field.label));
+      let count = 0;
+      for (const match of draft.body.matchAll(tokenPattern)) {
+        if (!names.has(match[1].trim())) continue;
+        const end = match.index + match[0].length;
+        const snippet = draft.body.slice(end, end + 40).split(/[\[\r\n]/, 1)[0];
+        if (!snippet.trim() || /^[\s\p{P}\p{S}]*$/u.test(snippet)) continue;
+        if (count >= 100) { const hint = document.createElement('p'); hint.className = 'muted'; hint.textContent = '앞 100곳을 표시합니다.'; list.append(hint); break; }
+        const particle = particleAfter(draft.body.slice(end, end + 32));
+        const button = document.createElement('button'); button.type = 'button'; button.title = '문서 틀에서 이 부분 확인';
+        const token = document.createElement('strong'); token.textContent = match[0];
+        const mark = document.createElement('mark'); mark.className = 'particle-context'; mark.textContent = particle ? snippet.slice(0, particle.source.length) : snippet;
+        const state = document.createElement('span'); state.className = 'muted'; state.textContent = particle ? ' · 조사 자동' : ' · 연결 문구 확인';
+        button.append(token, mark, document.createTextNode(particle ? snippet.slice(particle.source.length) : ''), state);
+        button.addEventListener('click', () => { const area = $('body-editor'); area.focus(); area.setSelectionRange(match.index, end + snippet.length); rememberBodyCursor(); });
+        list.append(button); count++;
+      }
+      $('particle-review').hidden = count === 0;
     }
 
     function applyEditor(announce = true) {
