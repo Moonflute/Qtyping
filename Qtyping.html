@@ -71,6 +71,8 @@
     .field-card label { display: block; font-size: 12px; margin-top: 7px; }
     .field-card input[type=text] { width: 100%; }
     .field-card .single-choice-toggle { display: inline-flex; align-items: center; gap: 4px; margin: 0; white-space: nowrap; }
+    .field-card .choice-separator { display: inline-flex; align-items: center; gap: 4px; margin: 0; white-space: nowrap; }
+    .field-card .choice-separator input[type=text] { width: 32px; padding: 1px 4px; text-align: center; }
     .small-button { padding: 1px 6px; }
     #edit-template { font-size: 12px; }
     .body-editor-wrap { position: relative; margin: 8px 0; }
@@ -576,11 +578,11 @@
       draft.fields.forEach((field, index) => {
         const isChoice = field.type === 'single' || field.type === 'multi';
         const card = document.createElement('div'); card.className = 'field-card';
-        card.innerHTML = '<div class="row spread"><strong class="field-title">' + (index + 1) + '. ' + esc(field.label) + '</strong><div class="row"><button type="button" class="small-button" data-action="up" aria-label="' + esc(field.label) + ' 위로" ' + (index === 0 ? 'disabled' : '') + '>↑</button><button type="button" class="small-button" data-action="down" aria-label="' + esc(field.label) + ' 아래로" ' + (index === draft.fields.length - 1 ? 'disabled' : '') + '>↓</button><button type="button" class="small-button" data-action="remove">항목 삭제</button>' +
-          (isChoice ? '<label class="single-choice-toggle"><input type="checkbox" data-single-choice aria-label="' + esc(field.label) + ' 단일 선택"' + (field.type === 'single' ? ' checked' : '') + '>단일 선택</label>' : '') + '</div></div>' +
+        card.innerHTML = '<div class="row spread"><strong class="field-title">' + (index + 1) + '. ' + esc(field.label) + '</strong><div class="row">' +
+          (isChoice ? '<label class="single-choice-toggle"><input type="checkbox" data-single-choice aria-label="' + esc(field.label) + ' 단일 선택"' + (field.type === 'single' ? ' checked' : '') + '>단일 선택</label><label class="choice-separator"' + (field.type === 'single' ? ' hidden' : '') + '>나열 표기<input type="text" data-key="separator" value="' + esc(field.separator) + '" placeholder=","></label>' : '') +
+          '<button type="button" class="small-button" data-action="up" aria-label="' + esc(field.label) + ' 위로" ' + (index === 0 ? 'disabled' : '') + '>↑</button><button type="button" class="small-button" data-action="down" aria-label="' + esc(field.label) + ' 아래로" ' + (index === draft.fields.length - 1 ? 'disabled' : '') + '>↓</button><button type="button" class="small-button" data-action="remove">항목 삭제</button></div></div>' +
           '<label>항목 이름<input type="text" data-key="label" value="' + esc(field.label) + '" maxlength="80"></label>' +
-          (isChoice ? '<label>선택지 (줄바꿈 또는 / 로 구분)<textarea data-key="options" rows="3" placeholder="고혈압 / 당뇨 / 고지혈증">' + esc(field.options.join('\n')) + '</textarea></label>' : '<label>입력 안내 (예시)<input type="text" data-key="placeholder" value="' + esc(field.placeholder) + '"></label>') +
-          (isChoice ? '<label class="choice-separator"' + (field.type === 'single' ? ' hidden' : '') + '>선택한 항목 사이 구분 문자<input type="text" data-key="separator" value="' + esc(field.separator) + '" placeholder=", "></label>' : '');
+          (isChoice ? '<label>선택지 (줄바꿈 또는 / 로 구분)<textarea data-key="options" rows="3" placeholder="고혈압 / 당뇨 / 고지혈증">' + esc(field.options.join('\n')) + '</textarea></label>' : '<label>입력 안내 (예시)<input type="text" data-key="placeholder" value="' + esc(field.placeholder) + '"></label>');
         const singleChoice = card.querySelector('[data-single-choice]');
         singleChoice?.addEventListener('change', () => {
           field.type = singleChoice.checked ? 'single' : 'multi';
