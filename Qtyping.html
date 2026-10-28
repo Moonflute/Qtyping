@@ -68,6 +68,7 @@
     .field-basics { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
     .field-basics label { min-width: 0; }
     .small-button { padding: 1px 7px; }
+    #edit-template { font-size: 12px; }
     .body-editor-wrap { position: relative; margin: 8px 0; }
     #body-editor { display: block; margin: 0; min-height: 285px; font-family: Consolas, 'Malgun Gothic', monospace; }
     #field-suggestions { position: absolute; z-index: 5; width: 270px; max-width: calc(100% - 12px); max-height: 200px; overflow-y: auto; border: 1px solid #888; background: #fff; }
@@ -142,7 +143,7 @@
       <section id="use-view" aria-label="문서 작성">
         <div class="row">
           <h2 id="current-title"></h2>
-          <button id="edit-template" type="button">양식 편집</button>
+          <button id="edit-template" class="small-button" type="button">편집</button>
         </div>
         <div class="workspace">
           <section aria-label="항목 입력">
@@ -197,7 +198,7 @@
         <details>
           <summary>사용법 / 저장 방법</summary>
           <ol>
-            <li><strong>새 양식</strong>을 만들거나 작업 영역의 양식 이름 옆 <strong>양식 편집</strong> 버튼을 누릅니다.</li>
+            <li><strong>새 양식</strong>을 만들거나 작업 영역의 양식 이름 옆 <strong>편집</strong> 버튼을 누릅니다.</li>
             <li>주관식·객관식 항목과 선택지를 설정하고, 문서 틀에 <strong>[항목 이름]</strong>을 넣습니다. 항목 버튼을 누르거나 <strong>@ 뒤에 항목 이름 일부</strong>를 입력해 선택할 수 있습니다.</li>
             <li><strong>편집 완료</strong> 후 입력·체크하면 완성본이 바로 바뀝니다. <strong>복사</strong>해서 사용하세요.</li>
             <li>양식을 변경했다면 제목 옆의 <strong>저장 아이콘</strong>을 누릅니다. 처음에는 <strong>지금 열어둔 HTML 파일</strong>을 선택하고 브라우저의 쓰기 권한을 허용하세요. 이후에는 선택한 파일 자체에 저장합니다.</li>
