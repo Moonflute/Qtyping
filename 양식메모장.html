@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>양식 메모장</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #222; background: #fff; font: 14px/1.65 Arial, 'Malgun Gothic', sans-serif; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { padding: 4px 11px; cursor: pointer; }
+    button:disabled { cursor: default; }
+    input[type=text], input[type=search], select, textarea { padding: 6px 8px; border: 1px solid #aaa; border-radius: 2px; background: #fff; }
+    textarea { width: 100%; resize: vertical; line-height: 1.75; tab-size: 2; }
+    input[type=checkbox], input[type=radio] { accent-color: #333; }
+    :focus-visible { outline: 2px solid #4262a1; outline-offset: 2px; }
+    h1 { margin: 0; font-size: 18px; }
+    h2 { margin: 0; font-size: 16px; }
+    h3 { margin: 0 0 8px; font-size: 14px; }
+    p { margin: 6px 0; }
+    [hidden] { display: none !important; }
+    header { border-bottom: 1px solid #aaa; padding: 12px 18px; }
+    .row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .spread { justify-content: space-between; }
+    .muted { color: #666; font-size: 12px; }
+    .toolbar { gap: 5px; }
+    .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 32px; padding: 6px; }
+    .icon-button svg { display: block; width: 18px; height: 18px; }
+    .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: calc(100vh - 110px); }
+    aside { grid-column: 1; grid-row: 1; padding: 16px 12px; border-right: 1px solid #ccc; background: #fafafa; }
+    aside input { width: 100%; margin: 10px 0; }
+    #template-list { display: grid; gap: 5px; }
+    .template-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px; }
+    .template-link { display: flex; align-items: baseline; gap: 6px; min-width: 0; width: 100%; text-align: left; padding: 7px 4px; border: 0; border-radius: 0; background: transparent; overflow-wrap: anywhere; cursor: grab; }
+    .template-link::before { content: '⠿'; flex: none; color: #888; font-weight: normal; }
+    .template-link[aria-current=true] { font-weight: bold; text-decoration: underline; text-underline-offset: 4px; }
+    #template-list .template-row { position: relative; }
+    #template-list .dragging { opacity: 0.4; }
+    #template-list .drop-before::before, #template-list .drop-after::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: #555; pointer-events: none; }
+    #template-list .drop-before::before { top: -3px; }
+    #template-list .drop-after::after { bottom: -3px; }
+    .template-actions { display: flex; gap: 3px; }
+    .list-icon { width: 26px; height: 28px; padding: 4px; }
+    .list-icon svg { width: 16px; height: 16px; }
+    .trash-panel { border-top: 1px solid #ccc; padding-top: 10px; margin-top: 18px; }
+    #trash-list { display: grid; gap: 8px; margin-top: 10px; }
+    .trash-name { min-width: 0; overflow-wrap: anywhere; }
+    main { grid-column: 2; grid-row: 1; min-width: 0; padding: 18px 22px 40px; }
+    .workspace { display: grid; grid-template-columns: minmax(230px, 0.9fr) minmax(250px, 1.1fr); gap: 22px; margin-top: 18px; }
+    .field { margin-bottom: 20px; }
+    .field > label, .field > legend { display: block; font-weight: bold; margin-bottom: 5px; }
+    .field input[type=text], .field select { width: 100%; }
+    fieldset.field { padding: 0; border: 0; min-width: 0; }
+    .choice { display: inline-flex; align-items: baseline; gap: 4px; margin: 3px 16px 3px 0; overflow-wrap: anywhere; }
+    .preview { min-width: 0; }
+    #output { min-height: 340px; margin: 8px 0; font: 14px/1.9 Consolas, 'Malgun Gothic', monospace; }
+    .notice { padding: 8px 12px; margin: 12px 0; border: 1px solid #b7b7b7; background: #fafafa; }
+    .error { color: #9d2323; }
+    .editor-grid { display: grid; grid-template-columns: minmax(250px, 1fr) minmax(270px, 1fr); gap: 22px; margin-top: 15px; }
+    .wide { width: 100%; }
+    #editor-title { max-width: 480px; }
+    .field-card { border: 1px solid #bbb; padding: 11px; margin: 10px 0; }
+    .field-title { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+    .field-card label { display: block; font-size: 12px; margin-top: 7px; }
+    .field-card input[type=text], .field-card select { width: 100%; }
+    .field-basics { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+    .field-basics label { min-width: 0; }
+    .small-button { padding: 1px 7px; }
+    .body-editor-wrap { position: relative; margin: 8px 0; }
+    #body-editor { display: block; margin: 0; min-height: 285px; font-family: Consolas, 'Malgun Gothic', monospace; }
+    #field-suggestions { position: absolute; z-index: 5; width: 270px; max-width: calc(100% - 12px); max-height: 200px; overflow-y: auto; border: 1px solid #888; background: #fff; }
+    .field-option { display: block; width: 100%; padding: 6px 9px; border: 0; border-radius: 0; background: transparent; text-align: left; overflow-wrap: anywhere; }
+    .field-option[aria-selected=true] { background: #e9e9e9; }
+    .field-suggestion-empty { padding: 7px 9px; }
+    #token-buttons { display: flex; gap: 5px; flex-wrap: wrap; margin: 8px 0; }
+    #token-buttons button { padding: 2px 6px; }
+    .editor-actions { margin-bottom: 12px; }
+    details { margin-top: 12px; }
+    summary { cursor: pointer; }
+    details ol { padding-left: 23px; }
+    #status { min-height: 24px; overflow-wrap: anywhere; }
+    #file-status.changed { color: #8b3c00; font-weight: bold; }
+    #empty-state { padding: 40px 0; }
+    footer { margin-top: 25px; padding-top: 10px; border-top: 1px solid #ddd; }
+    @media (max-width: 900px) { .workspace, .editor-grid { grid-template-columns: 1fr; } #output { min-height: 220px; } }
+    @media (max-width: 560px) { header { padding: 10px 12px; } .layout { grid-template-columns: 1fr; } aside { grid-column: 1; grid-row: 1; border-right: 0; border-bottom: 1px solid #ccc; padding: 10px 12px; } aside input { margin: 5px 0; } main { grid-column: 1; grid-row: 2; padding: 14px 12px 30px; } }
+    @media print { header, aside, #form-fields, .workspace > :first-child, button, footer, .notice, #status, #output-hint { display: none; } .layout, .workspace { display: block; } main { padding: 0; } #output { border: 0; height: auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="row spread">
+      <div class="row">
+        <h1>양식 메모장</h1>
+        <div class="row toolbar" role="group" aria-label="파일">
+      <button id="save-html" class="icon-button" type="button" aria-label="저장" title="저장 — 현재 HTML 파일에 덮어쓰기 (Ctrl+S)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg>
+      </button>
+      <button id="export-json" class="icon-button" type="button" aria-label="내보내기" title="내보내기 — 모든 양식을 JSON 파일로 백업">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></svg>
+      </button>
+      <button id="import-json" class="icon-button" type="button" aria-label="불러오기" title="불러오기 — JSON 백업 파일의 양식을 목록에 추가">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 20V5a1 1 0 0 1 1-1h5l3 3h8a1 1 0 0 1 1 1v3M3 20l4-9h15l-4 9H3Z"/></svg>
+      </button>
+        </div>
+      </div>
+      <span id="file-status" class="muted">파일에 담긴 양식</span>
+    </div>
+    <p id="save-help" class="muted">처음 저장할 때 현재 열어둔 HTML 파일을 선택하세요. 이후 같은 파일에 덮어씁니다. (Chrome / Edge)</p>
+    <input id="import-file" type="file" accept=".json,application/json" hidden>
+  </header>
+
+  <div class="layout">
+    <aside aria-label="양식 목록">
+      <div class="row spread"><strong>내 양식</strong><button id="new-template" type="button">+ 새 양식</button></div>
+      <label for="search" class="muted">양식 찾기</label>
+      <input id="search" type="search" placeholder="이름 검색" autocomplete="off">
+      <nav id="template-list" aria-label="저장된 양식"></nav>
+      <p id="template-order-help" class="muted">이름을 드래그해 순서 변경 · Alt+↑/↓</p>
+      <details id="trash-panel" class="trash-panel">
+        <summary>휴지통 (<span id="trash-count">0</span>)</summary>
+        <div id="trash-list" aria-label="삭제한 양식"></div>
+        <p class="muted">복구 아이콘을 누르면 양식 목록으로 돌아옵니다. 휴지통도 HTML 저장·JSON 백업에 포함됩니다.</p>
+      </details>
+    </aside>
+    <main>
+      <div id="recovery" class="notice" hidden>
+        <p>이 파일에 담긴 양식과 다른 변경사항이 이 컴퓨터에 남아 있습니다.</p>
+        <button id="recover" type="button">변경사항 복구</button>
+        <button id="ignore-recovery" type="button">파일에 담긴 양식 사용</button>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+
+      <section id="empty-state" hidden>
+        <h2>양식을 만들어 시작하세요.</h2>
+        <p>주관식·객관식 항목을 추가하고, 문서 틀에 [항목 이름]을 넣으면 됩니다.</p>
+        <button id="empty-new" type="button">새 양식 만들기</button>
+      </section>
+
+      <section id="use-view" aria-label="문서 작성">
+        <h2 id="current-title"></h2>
+        <div class="workspace">
+          <section aria-label="항목 입력">
+            <div class="row spread"><h3>입력 / 선택</h3><button id="clear-inputs" type="button">입력 초기화</button></div>
+            <div id="form-fields"></div>
+          </section>
+          <section class="preview" aria-label="완성 문서">
+            <div class="row spread"><label for="output"><strong>완성본</strong></label><button id="copy-output" type="button">복사</button></div>
+            <textarea id="output" readonly spellcheck="false" aria-describedby="output-hint"></textarea>
+            <div id="output-hint" class="muted"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="edit-view" aria-label="양식 편집" hidden>
+        <div class="row editor-actions">
+          <h2 id="edit-heading">양식 편집</h2>
+          <button id="apply-template" type="button"><strong>편집 완료</strong></button>
+          <button id="cancel-edit" type="button">취소</button>
+        </div>
+        <p class="muted">다른 컴퓨터로 옮기기 전에는 위의 저장 아이콘을 누르세요.</p>
+        <p><label for="editor-title">양식 이름</label></p>
+        <input id="editor-title" class="wide" type="text" maxlength="120" placeholder="예: 초진 기록">
+        <div class="editor-grid">
+          <section aria-label="항목 설정">
+            <h3>1. 입력할 항목 만들기</h3>
+            <div class="row">
+              <button type="button" data-add-type="text">+ 짧은 주관식</button>
+              <button type="button" data-add-type="textarea">+ 긴 주관식</button>
+              <button type="button" data-add-type="single">+ 단일 선택</button>
+              <button type="button" data-add-type="multi">+ 복수 선택</button>
+            </div>
+            <div id="field-editor-list"></div>
+          </section>
+          <section aria-label="문서 틀 설정">
+            <h3>2. 문서 틀 작성하기</h3>
+            <p class="muted">항목 버튼을 누르거나 문서 틀에서 @를 입력해 항목을 찾으세요. ↑↓로 이동 · Enter/Tab으로 삽입 · Esc로 닫기</p>
+            <div id="token-buttons"></div>
+            <label for="body-editor">문서 틀</label>
+            <div class="body-editor-wrap">
+              <textarea id="body-editor" spellcheck="false" aria-autocomplete="list" aria-controls="field-suggestions" placeholder="상기 환자는 [주호소]으로 내원한 자로, 기저질환은 [기저질환] 있습니다."></textarea>
+              <div id="field-suggestions" role="listbox" aria-label="삽입할 항목" hidden></div>
+            </div>
+            <p id="template-check" class="muted" aria-live="polite"></p>
+            <p class="muted">항목 이름을 바꾸면 문서 틀의 [항목 이름]도 함께 바뀝니다.</p>
+          </section>
+        </div>
+      </section>
+
+      <footer>
+        <div class="muted">입력한 문서 내용은 파일·브라우저에 저장하지 않습니다. HTML 저장에는 양식 설정만 포함됩니다.</div>
+        <details>
+          <summary>사용법 / 저장 방법</summary>
+          <ol>
+            <li><strong>새 양식</strong>을 만들거나 왼쪽 목록의 양식 이름 옆 <strong>편집(연필) 아이콘</strong>을 누릅니다.</li>
+            <li>주관식·객관식 항목과 선택지를 설정하고, 문서 틀에 <strong>[항목 이름]</strong>을 넣습니다. 항목 버튼을 누르거나 <strong>@ 뒤에 항목 이름 일부</strong>를 입력해 선택할 수 있습니다.</li>
+            <li><strong>편집 완료</strong> 후 입력·체크하면 완성본이 바로 바뀝니다. <strong>복사</strong>해서 사용하세요.</li>
+            <li>양식을 변경했다면 제목 옆의 <strong>저장 아이콘</strong>을 누릅니다. 처음에는 <strong>지금 열어둔 HTML 파일</strong>을 선택하고 브라우저의 쓰기 권한을 허용하세요. 이후에는 선택한 파일 자체에 저장합니다.</li>
+            <li>원본 저장은 <strong>Chrome / Edge</strong>에서 사용할 수 있습니다. 파일을 다시 열거나 쓰기 권한이 해제된 경우 파일 선택·권한 확인이 다시 필요할 수 있습니다.</li>
+            <li>저장한 HTML 파일을 Google Drive 등에 올려 보관하세요. 다른 컴퓨터에서 최신 파일을 내려받아 브라우저로 열면 양식까지 그대로 사용할 수 있습니다.</li>
+            <li><strong>내보내기 아이콘</strong>은 설정만 JSON 파일로 저장합니다. <strong>불러오기 아이콘</strong>으로 백업한 양식을 추가할 수 있습니다. 아이콘 위에 마우스를 올리면 기능 설명이 표시됩니다.</li>
+            <li>양식 목록의 이름 오른쪽에 있는 <strong>복제·휴지통 아이콘</strong>으로 양식을 복제하거나 휴지통으로 옮길 수 있습니다. 삭제한 양식은 목록 아래의 <strong>휴지통</strong>을 펼쳐 복구하세요. 삭제·복구 후에도 저장 아이콘을 눌러 파일에 반영합니다.</li>
+            <li>왼쪽 목록의 <strong>양식 이름을 위아래로 드래그</strong>하면 순서를 바꿀 수 있습니다. 이름에 키보드 초점을 두고 <strong>Alt+↑/↓</strong>로도 이동할 수 있습니다. 바꾼 순서는 저장 아이콘을 눌러 파일에 반영하세요.</li>
+          </ol>
+          <p class="muted">로그인·설치·인터넷 연결 없이 동작합니다. Ctrl+S(또는 ⌘S)도 같은 파일에 저장합니다. 저장 전 탭을 닫거나 새로고침하면 브라우저의 나가기 확인창이 뜹니다. 머무르기를 선택한 뒤 저장하세요.</p>
+        </details>
+      </footer>
+    </main>
+  </div>
+
+  <script type="application/json" id="saved-data">
+{"app":"form-notepad","version":1,"libraryId":"starter-library","exportId":"starter-20261028","exportedAt":"2026-10-28T00:00:00.000Z","activeId":"initial-note","templates":[{"id":"initial-note","title":"초진 기록 (예시)","body":"상기 환자는 [주호소]으로 내원한 자로, 기저질환은 [기저질환] 있습니다.\n추가 소견: [추가 소견]","fields":[{"id":"complaint","label":"주호소","type":"text","placeholder":"예: 오늘부터 시작된 복부 통증","options":[],"emptyText":"","separator":", "},{"id":"history","label":"기저질환","type":"multi","placeholder":"","options":["고혈압","당뇨","고지혈증"],"emptyText":"특이 사항 없이 지내고","separator":", "},{"id":"notes","label":"추가 소견","type":"textarea","placeholder":"필요한 내용을 입력하세요.","options":[],"emptyText":"없음","separator":", "}]}]}
+  </script>
+  <script id="app-code">
+  'use strict';
+  (() => {
+    const $ = (id) => document.getElementById(id);
+    const clone = (value) => JSON.parse(JSON.stringify(value));
+    const id = () => (globalThis.crypto?.randomUUID?.() || 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    const types = { text: '짧은 주관식', textarea: '긴 주관식', single: '단일 선택', multi: '복수 선택' };
+    const MAX_TEMPLATES = 500;
+    const MAX_TRASH = 5000;
+    const MAX_FIELDS = 100;
+    const tokenPattern = /\[([^\[\]\r\n]+)\]/g;
+
+    function normalizeTemplate(raw, usedIds = new Set()) {
+      if (!raw || typeof raw !== 'object' || typeof raw.title !== 'string' || typeof raw.body !== 'string' || !Array.isArray(raw.fields)) throw new Error('양식 파일 형식이 올바르지 않습니다.');
+      if (raw.fields.length > MAX_FIELDS || raw.body.length > 200000 || raw.title.length > 120) throw new Error('양식의 항목 수 또는 내용이 너무 큽니다.');
+      const names = new Set();
+      const fieldIds = new Set();
+      const fields = raw.fields.map((field) => {
+        if (!field || typeof field !== 'object' || !Object.hasOwn(types, field.type)) throw new Error('지원하지 않는 항목 종류입니다.');
+        const label = typeof field.label === 'string' ? field.label.trim() : '';
+        if (!label || label.length > 80 || /[\[\]\r\n]/.test(label)) throw new Error('항목 이름은 1~80자로 입력하고, 대괄호와 줄바꿈은 제외하세요.');
+        if (names.has(label)) throw new Error('항목 이름이 중복됩니다: ' + label);
+        names.add(label);
+        let fieldId = typeof field.id === 'string' && field.id.length < 100 ? field.id : id();
+        if (fieldIds.has(fieldId)) fieldId = id();
+        fieldIds.add(fieldId);
+        const options = Array.isArray(field.options) ? [...new Set(field.options.filter((item) => typeof item === 'string').map((item) => item.trim()).filter(Boolean))] : [];
+        if (options.length > 300 || options.some((option) => option.length > 1000)) throw new Error('선택지가 너무 많거나 깁니다.');
+        if ((field.type === 'single' || field.type === 'multi') && !options.length) throw new Error('객관식 항목에는 선택지를 하나 이상 넣으세요: ' + label);
+        return { id: fieldId, label, type: field.type, options, placeholder: typeof field.placeholder === 'string' ? field.placeholder.slice(0, 1000) : '', emptyText: typeof field.emptyText === 'string' ? field.emptyText.slice(0, 5000) : '', separator: typeof field.separator === 'string' ? field.separator.slice(0, 100) : ', ' };
+      });
+      let templateId = typeof raw.id === 'string' && raw.id.length < 100 ? raw.id : id();
+      if (usedIds.has(templateId)) templateId = id();
+      usedIds.add(templateId);
+      return { id: templateId, title: raw.title.trim() || '이름 없는 양식', body: raw.body, fields };
+    }
+
+    function readLibrary(raw) {
+      if (!raw || raw.app !== 'form-notepad' || raw.version !== 1 || !Array.isArray(raw.templates) || raw.templates.length > MAX_TEMPLATES) throw new Error('이 도구에서 만든 양식 백업 파일을 선택하세요.');
+      if (raw.trash !== undefined && (!Array.isArray(raw.trash) || raw.trash.length > MAX_TRASH)) throw new Error('휴지통 데이터 형식이나 양식 수를 확인하세요.');
+      const usedIds = new Set();
+      const templates = raw.templates.map((item) => normalizeTemplate(item, usedIds));
+      const trash = (raw.trash || []).map((item) => ({ ...normalizeTemplate(item, usedIds), deletedAt: typeof item.deletedAt === 'string' && Number.isFinite(Date.parse(item.deletedAt)) ? item.deletedAt : '', originalIndex: Number.isInteger(item.originalIndex) && item.originalIndex >= 0 ? item.originalIndex : 0 }));
+      return { app: 'form-notepad', version: 1, libraryId: typeof raw.libraryId === 'string' ? raw.libraryId : id(), exportId: typeof raw.exportId === 'string' ? raw.exportId : id(), exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : '', activeId: templates.some((item) => item.id === raw.activeId) ? raw.activeId : templates[0]?.id || '', templates, trash };
+    }
+
+    function libraryFingerprint(value) { return JSON.stringify({ templates: value.templates, trash: value.trash || [] }); }
+
+    let library;
+    try { library = readLibrary(JSON.parse($('saved-data').textContent)); }
+    catch (error) { $('status').textContent = '파일에 담긴 양식을 읽지 못했습니다: ' + error.message; $('use-view').hidden = true; return; }
+    let diskExportId = library.exportId;
+    const cacheKey = 'form-notepad.v1:' + library.libraryId + ':' + location.pathname;
+    let changed = false;
+    let draft = null;
+    let editorDirty = false;
+    let draftIsNew = false;
+    let answers = Object.create(null);
+    let recoverable = null;
+    let cursor = { start: 0, end: 0 };
+    let fieldMention = null;
+    let dismissedFieldMention = null;
+    let bodyComposing = false;
+    let search = '';
+    let draggedTemplateId = '';
+    let statusTimer;
+    let fileHandle = null;
+    let saving = false;
+    let lastWrittenHtml = null;
+    const shell = document.documentElement.cloneNode(true);
+
+    function status(message, isError = false) {
+      clearTimeout(statusTimer);
+      $('status').textContent = message;
+      $('status').className = isError ? 'error' : '';
+      if (!isError) statusTimer = setTimeout(() => { $('status').textContent = ''; }, 9000);
+    }
+
+    function persistRecovery() {
+      try { localStorage.setItem(cacheKey, JSON.stringify({ baseExportId: diskExportId, savedAt: new Date().toISOString(), library })); }
+      catch { /* Portable HTML is the authoritative save; browser recovery is optional. */ }
+    }
+
+    function markChanged() { changed = true; persistRecovery(); updateFileStatus(); }
+    function updateFileStatus() {
+      const dirty = changed || editorDirty;
+      const fileName = fileHandle ? fileHandle.name + ' · ' : '';
+      $('file-status').textContent = saving ? '저장 중…' : fileName + (dirty ? '양식 변경됨 · 저장 필요' : (library.exportedAt ? '파일 기준: ' + new Date(library.exportedAt).toLocaleString('ko-KR') : '파일에 담긴 양식'));
+      $('file-status').className = 'muted' + (dirty ? ' changed' : '');
+      $('save-html').disabled = saving;
+      $('save-html').setAttribute('aria-busy', String(saving));
+      document.title = (dirty ? '* ' : '') + '양식 메모장';
+    }
+    function current() { return library.templates.find((item) => item.id === library.activeId) || null; }
+    function hasAnswers() { return Object.values(answers).some((value) => Array.isArray(value) ? value.length > 0 : String(value).length > 0); }
+
+    function renderList() {
+      const list = $('template-list');
+      endTemplateDrag();
+      list.replaceChildren();
+      const items = library.templates.filter((item) => item.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+      for (const item of items) {
+        const row = document.createElement('div'); row.className = 'template-row'; row.dataset.templateId = item.id;
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'template-link'; button.textContent = item.title;
+        button.setAttribute('aria-current', String(item.id === library.activeId));
+        button.draggable = true;
+        button.title = '드래그해 순서 변경 (Alt+↑/↓)';
+        button.setAttribute('aria-describedby', 'template-order-help');
+        button.setAttribute('aria-keyshortcuts', 'Alt+ArrowUp Alt+ArrowDown');
+        button.addEventListener('click', () => selectTemplate(item.id));
+        button.addEventListener('dragstart', (event) => {
+          if (!event.dataTransfer) { event.preventDefault(); return; }
+          endTemplateDrag();
+          draggedTemplateId = item.id;
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', item.id);
+          row.classList.add('dragging');
+        });
+        button.addEventListener('dragend', endTemplateDrag);
+        button.addEventListener('keydown', (event) => {
+          if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+          event.preventDefault();
+          const index = items.findIndex((template) => template.id === item.id);
+          const neighbor = items[index + (event.key === 'ArrowUp' ? -1 : 1)];
+          if (neighbor && moveTemplate(item.id, neighbor.id, event.key === 'ArrowDown')) {
+            const moved = Array.from(list.children).find((element) => element.dataset.templateId === item.id);
+            moved?.querySelector('.template-link').focus();
+          }
+        });
+        const actions = document.createElement('div'); actions.className = 'template-actions';
+        actions.append(listIcon('edit', item.title + ' 편집', () => beginEdit(false, item.id)), listIcon('duplicate', item.title + ' 복제', () => duplicateTemplate(item.id)), listIcon('trash', item.title + ' 휴지통으로 이동', () => trashTemplate(item.id)));
+        row.append(button, actions); list.append(row);
+      }
+      if (!items.length) { const hint = document.createElement('p'); hint.className = 'muted'; hint.textContent = search ? '검색 결과가 없습니다.' : '저장된 양식이 없습니다.'; list.append(hint); }
+      renderTrash();
+    }
+
+    function clearDropIndicator() {
+      $('template-list').querySelectorAll('.drop-before, .drop-after').forEach((row) => row.classList.remove('drop-before', 'drop-after'));
+    }
+
+    function endTemplateDrag() {
+      draggedTemplateId = '';
+      clearDropIndicator();
+      $('template-list').querySelectorAll('.dragging').forEach((row) => row.classList.remove('dragging'));
+    }
+
+    function templateDropPosition(clientY) {
+      const rows = Array.from($('template-list').children).filter((element) => element.classList.contains('template-row'));
+      const row = rows.find((element) => clientY < element.getBoundingClientRect().bottom) || rows[rows.length - 1];
+      if (!row) return null;
+      const rect = row.getBoundingClientRect();
+      return { row, templateId: row.dataset.templateId, after: clientY >= rect.top + rect.height / 2 };
+    }
+
+    function moveTemplate(templateId, targetId, after) {
+      const from = library.templates.findIndex((item) => item.id === templateId);
+      const target = library.templates.findIndex((item) => item.id === targetId);
+      if (from < 0 || target < 0 || from === target) return false;
+      let to = target + (after ? 1 : 0);
+      if (from < to) to--;
+      if (from === to) return false;
+      const [template] = library.templates.splice(from, 1);
+      library.templates.splice(to, 0, template);
+      markChanged();
+      renderList();
+      status('양식 순서를 변경했습니다. 저장 아이콘을 눌러 파일에 반영하세요.');
+      return true;
+    }
+
+    function listIcon(action, label, handler) {
+      const paths = {
+        edit: '<path d="m16 3 5 5M4 20l5-1L21 7l-5-5L4 14l-1 7 6-2"/>',
+        duplicate: '<rect x="8" y="8" width="12" height="13" rx="1"/><path d="M16 8V3H3v13h5"/>',
+        trash: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>',
+        restore: '<path d="M3 10h11a6 6 0 0 1 0 12h-3M3 10l5-5M3 10l5 5"/>',
+      };
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'icon-button list-icon'; button.dataset.action = action;
+      button.setAttribute('aria-label', label); button.title = label;
+      button.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + paths[action] + '</svg>';
+      button.addEventListener('click', handler);
+      return button;
+    }
+
+    function renderTrash() {
+      $('trash-count').textContent = String(library.trash.length);
+      const list = $('trash-list'); list.replaceChildren();
+      for (const item of [...library.trash].reverse()) {
+        const row = document.createElement('div'); row.className = 'template-row'; row.dataset.templateId = item.id;
+        const name = document.createElement('span'); name.className = 'trash-name'; name.textContent = item.title;
+        if (item.deletedAt) name.title = '삭제: ' + new Date(item.deletedAt).toLocaleString('ko-KR');
+        row.append(name, listIcon('restore', item.title + ' 복구', () => restoreTemplate(item.id))); list.append(row);
+      }
+      if (!library.trash.length) { const hint = document.createElement('p'); hint.className = 'muted'; hint.textContent = '휴지통이 비어 있습니다.'; list.append(hint); }
+    }
+
+    function duplicateTemplate(templateId) {
+      const template = library.templates.find((item) => item.id === templateId);
+      if (!template) return;
+      if (library.templates.length >= MAX_TEMPLATES) { status('양식 수 한도를 초과합니다.', true); return; }
+      const duplicate = clone(template); duplicate.id = id(); duplicate.title = template.title.slice(0, 115) + ' (복제)';
+      library.templates.push(duplicate);
+      const selectCopy = !draft && !hasAnswers();
+      if (selectCopy) library.activeId = duplicate.id;
+      markChanged();
+      if (selectCopy) render(); else renderList();
+      status('‘' + template.title + '’ 양식을 복제했습니다.');
+    }
+
+    function trashTemplate(templateId) {
+      const index = library.templates.findIndex((item) => item.id === templateId);
+      if (index < 0) return;
+      if (library.trash.length >= MAX_TRASH) { status('휴지통의 양식 수 한도에 도달했습니다. 먼저 휴지통에서 양식을 복구해주세요.', true); return; }
+      const template = library.templates[index];
+      const edited = draft?.id === templateId;
+      const active = library.activeId === templateId;
+      if (((edited && editorDirty) || (active && hasAnswers())) && !confirm('현재 편집·입력 중인 내용은 초기화됩니다. 이 양식을 휴지통으로 옮길까요?')) return;
+      library.trash.push({ ...clone(template), deletedAt: new Date().toISOString(), originalIndex: index });
+      library.templates.splice(index, 1);
+      if (active) { library.activeId = library.templates[Math.min(index, library.templates.length - 1)]?.id || ''; answers = Object.create(null); }
+      if (edited) { draft = null; editorDirty = false; }
+      markChanged();
+      if (edited || (active && !draft)) render(); else renderList();
+      status('‘' + template.title + '’ 양식을 휴지통으로 옮겼습니다. 목록 아래의 휴지통에서 복구할 수 있습니다.');
+    }
+
+    function restoreTemplate(templateId) {
+      const index = library.trash.findIndex((item) => item.id === templateId);
+      if (index < 0) return;
+      if (library.templates.length >= MAX_TEMPLATES) { status('양식 목록이 가득 찼습니다. 다른 양식을 휴지통으로 옮긴 뒤 복구해주세요.', true); return; }
+      const item = library.trash[index];
+      const restored = normalizeTemplate(item, new Set(library.templates.map((template) => template.id)));
+      library.templates.splice(Math.min(item.originalIndex, library.templates.length), 0, restored);
+      library.trash.splice(index, 1);
+      const showRestored = !current() && !draft;
+      if (showRestored) library.activeId = restored.id;
+      markChanged();
+      if (showRestored) render(); else renderList();
+      status('‘' + restored.title + '’ 양식을 복구했습니다. 저장 아이콘을 눌러 파일에 반영하세요.');
+    }
+
+    function selectTemplate(templateId) {
+      if (draft && !confirm('편집 중인 변경사항을 취소하고 양식을 바꿀까요?')) return;
+      if (templateId !== library.activeId && hasAnswers() && !confirm('다른 양식으로 바꾸면 현재 입력 내용이 초기화됩니다. 바꿀까요?')) return;
+      draft = null; editorDirty = false;
+      if (templateId !== library.activeId) answers = Object.create(null);
+      library.activeId = templateId; render();
+    }
+
+    function render() {
+      closeFieldSuggestions();
+      renderList(); updateFileStatus();
+      $('edit-view').hidden = !draft;
+      $('empty-state').hidden = !!current() || !!draft;
+      $('use-view').hidden = !current() || !!draft;
+      if (draft) { renderEditor(); return; }
+      const template = current();
+      if (!template) return;
+      $('current-title').textContent = template.title;
+      const form = $('form-fields'); form.replaceChildren();
+      if (!template.fields.length) { const hint = document.createElement('p'); hint.className = 'muted'; hint.textContent = '입력 항목이 없는 양식입니다. 문서 틀의 내용이 그대로 표시됩니다.'; form.append(hint); }
+      template.fields.forEach((field) => {
+        const isChoice = field.type === 'single' || field.type === 'multi';
+        const group = document.createElement(isChoice ? 'fieldset' : 'div'); group.className = 'field';
+        const label = document.createElement(isChoice ? 'legend' : 'label'); label.textContent = field.label;
+        const controlId = 'input-' + field.id;
+        if (!isChoice) label.htmlFor = controlId;
+        group.append(label);
+        if (isChoice) {
+          field.options.forEach((option, index) => {
+            const optionLabel = document.createElement('label'); optionLabel.className = 'choice';
+            const input = document.createElement('input'); input.type = field.type === 'multi' ? 'checkbox' : 'radio'; input.name = controlId; input.value = option; input.id = controlId + '-' + index;
+            input.checked = field.type === 'multi' ? (answers[field.id] || []).includes(option) : answers[field.id] === option;
+            input.addEventListener('change', () => {
+              answers[field.id] = field.type === 'multi' ? field.options.filter((item) => Array.from(group.querySelectorAll('input:checked')).some((node) => node.value === item)) : input.value;
+              updateOutput();
+            });
+            optionLabel.append(input, document.createTextNode(option)); group.append(optionLabel);
+          });
+          const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'small-button'; clear.textContent = '선택 해제'; clear.setAttribute('aria-label', field.label + ' 선택 해제');
+          clear.addEventListener('click', () => { delete answers[field.id]; group.querySelectorAll('input').forEach((node) => { node.checked = false; }); updateOutput(); }); group.append(clear);
+        } else {
+          const input = document.createElement(field.type === 'textarea' ? 'textarea' : 'input');
+          if (field.type === 'text') input.type = 'text'; else input.rows = 3;
+          input.id = controlId; input.placeholder = field.placeholder; input.value = answers[field.id] || ''; input.autocomplete = 'off';
+          input.addEventListener('input', () => { answers[field.id] = input.value; updateOutput(); }); group.append(input);
+        }
+        form.append(group);
+      });
+      updateOutput();
+    }
+
+    function renderDocument(template, values) {
+      const fields = new Map(template.fields.map((field) => [field.label, field]));
+      const unknown = new Set();
+      const text = template.body.replace(tokenPattern, (match, name) => {
+        const field = fields.get(name.trim());
+        if (!field) { unknown.add(name); return match; }
+        const answer = values[field.id];
+        if (field.type === 'multi') {
+          const selected = field.options.filter((option) => Array.isArray(answer) && answer.includes(option));
+          return selected.length ? selected.join(field.separator) : field.emptyText;
+        }
+        if (field.type === 'single' && !field.options.includes(answer)) return field.emptyText;
+        return typeof answer === 'string' && answer.length ? answer : field.emptyText;
+      });
+      return { text, unknown: [...unknown] };
+    }
+
+    function updateOutput() {
+      if (!current()) return;
+      const result = renderDocument(current(), answers);
+      $('output').value = result.text;
+      $('copy-output').disabled = !result.text.trim();
+      $('output-hint').textContent = result.unknown.length ? '등록되지 않은 항목: ' + result.unknown.map((name) => '[' + name + ']').join(', ') + ' — 양식 편집에서 확인하세요.' : result.text.length + '자 · 입력·선택한 내용이 실시간 반영됩니다.';
+      $('output-hint').className = 'muted' + (result.unknown.length ? ' error' : '');
+    }
+
+    function beginEdit(isNew = false, templateId = library.activeId) {
+      const template = library.templates.find((item) => item.id === templateId);
+      if (!isNew && !template) return;
+      if (!isNew && draft?.id === templateId) { $('editor-title').focus(); return; }
+      if (draft && !confirm('편집 중인 변경사항을 취소할까요?')) return;
+      if (isNew && library.templates.length >= MAX_TEMPLATES) { status('양식은 최대 ' + MAX_TEMPLATES + '개까지 만들 수 있습니다.', true); return; }
+      if (!isNew && templateId !== library.activeId) {
+        if (hasAnswers() && !confirm('다른 양식을 편집하면 현재 입력 내용이 초기화됩니다. 바꿀까요?')) return;
+        library.activeId = templateId;
+        answers = Object.create(null);
+      }
+      draft = isNew ? { id: id(), title: '새 양식', body: '', fields: [] } : clone(template);
+      draftIsNew = isNew; editorDirty = isNew; cursor = { start: draft.body.length, end: draft.body.length };
+      render(); $('editor-title').focus(); $('editor-title').select();
+    }
+
+    function dirtyEditor() { editorDirty = true; updateFileStatus(); }
+
+    function renderEditor() {
+      closeFieldSuggestions();
+      dismissedFieldMention = null; bodyComposing = false;
+      $('edit-heading').textContent = draftIsNew ? '새 양식 만들기' : '양식 편집';
+      $('editor-title').value = draft.title; $('body-editor').value = draft.body;
+      const cards = $('field-editor-list'); cards.replaceChildren();
+      draft.fields.forEach((field, index) => {
+        const card = document.createElement('div'); card.className = 'field-card';
+        card.innerHTML = '<div class="row spread"><strong class="field-title">' + (index + 1) + '. ' + esc(field.label) + '</strong><div class="row"><button type="button" class="small-button" data-action="up" aria-label="' + esc(field.label) + ' 위로" ' + (index === 0 ? 'disabled' : '') + '>↑</button><button type="button" class="small-button" data-action="down" aria-label="' + esc(field.label) + ' 아래로" ' + (index === draft.fields.length - 1 ? 'disabled' : '') + '>↓</button><button type="button" class="small-button" data-action="remove">항목 삭제</button></div></div>' +
+          '<div class="field-basics"><label>항목 이름<input type="text" data-key="label" value="' + esc(field.label) + '" maxlength="80"></label>' +
+          '<label>입력 종류<select data-key="type">' + Object.entries(types).map(([key, text]) => '<option value="' + key + '"' + (field.type === key ? ' selected' : '') + '>' + text + '</option>').join('') + '</select></label></div>' +
+          ((field.type === 'single' || field.type === 'multi') ? '<label>선택지 (한 줄에 하나씩)<textarea data-key="options" rows="3">' + esc(field.options.join('\n')) + '</textarea></label>' : '<label>입력 안내 (예시)<input type="text" data-key="placeholder" value="' + esc(field.placeholder) + '"></label>') +
+          (field.type === 'multi' ? '<label>선택한 항목 사이 구분 문자<input type="text" data-key="separator" value="' + esc(field.separator) + '" placeholder=", "></label>' : '');
+        card.querySelectorAll('[data-key]').forEach((control) => {
+          const key = control.dataset.key;
+          control.addEventListener(key === 'type' ? 'change' : 'input', () => {
+            const value = control.value;
+            if (key === 'label') {
+              const label = value.trim();
+              card.querySelector('.field-title').textContent = (index + 1) + '. ' + (label || '항목');
+              card.querySelector('[data-action=up]').setAttribute('aria-label', (label || '항목') + ' 위로');
+              card.querySelector('[data-action=down]').setAttribute('aria-label', (label || '항목') + ' 아래로');
+              if (!label || label.length > 80 || /[\[\]\r\n]/.test(label) || draft.fields.some((other) => other.id !== field.id && other.label === label)) { control.setCustomValidity('항목 이름이 비어 있거나 중복됩니다. 대괄호와 줄바꿈도 사용할 수 없습니다.'); dirtyEditor(); return; }
+              control.setCustomValidity('');
+              const old = field.label;
+              draft.body = draft.body.replace(tokenPattern, (match, name) => name.trim() === old ? '[' + label + ']' : match); field.label = label;
+              $('body-editor').value = draft.body; renderTokens(); checkTemplate();
+            } else if (key === 'options') { field.options = value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean); }
+            else { field[key] = value; }
+            dirtyEditor();
+            if (key === 'type') renderEditor();
+          });
+        });
+        card.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => {
+          const action = button.dataset.action;
+          if (action === 'remove') {
+            const used = Array.from(draft.body.matchAll(tokenPattern)).some((match) => match[1].trim() === field.label);
+            if (!confirm('‘' + field.label + '’ 항목을 삭제할까요?' + (used ? ' 문서 틀에 들어간 표시도 함께 삭제됩니다.' : ''))) return;
+            if (used) draft.body = draft.body.replace(tokenPattern, (match, name) => name.trim() === field.label ? '' : match);
+            draft.fields.splice(index, 1);
+          } else {
+            const target = action === 'up' ? index - 1 : index + 1;
+            [draft.fields[index], draft.fields[target]] = [draft.fields[target], draft.fields[index]];
+          }
+          dirtyEditor(); renderEditor();
+        }));
+        cards.append(card);
+      });
+      renderTokens(); checkTemplate();
+    }
+
+    function renderTokens() {
+      const tokens = $('token-buttons'); tokens.replaceChildren();
+      draft.fields.forEach((field) => {
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = '[' + field.label + ']';
+        button.addEventListener('click', () => insertFieldToken(field, cursor.start, cursor.end)); tokens.append(button);
+      });
+      if (!draft.fields.length) tokens.textContent = '왼쪽에서 항목을 추가하세요.';
+    }
+
+    function rememberBodyCursor() {
+      const area = $('body-editor');
+      cursor = { start: area.selectionStart, end: area.selectionEnd };
+    }
+
+    function closeFieldSuggestions() {
+      fieldMention = null;
+      $('field-suggestions').hidden = true;
+      $('field-suggestions').replaceChildren();
+      $('body-editor').removeAttribute('aria-activedescendant');
+    }
+
+    function fieldMentionAtCursor() {
+      const area = $('body-editor');
+      if (area.selectionStart !== area.selectionEnd) return null;
+      const before = area.value.slice(0, area.selectionStart);
+      const start = before.lastIndexOf('@');
+      if (start < 0 || (start > 0 && /[A-Za-z0-9._%+@-]/.test(before[start - 1]))) return null;
+      const query = before.slice(start + 1);
+      if (query.length > 80 || /[\r\n\[\]]/.test(query) || before.lastIndexOf('[') > before.lastIndexOf(']')) return null;
+      return { start, end: area.selectionStart, query };
+    }
+
+    function positionFieldSuggestions() {
+      if (!fieldMention) return;
+      const area = $('body-editor');
+      const popup = $('field-suggestions');
+      const style = getComputedStyle(area);
+      const mirror = document.createElement('div');
+      mirror.setAttribute('aria-hidden', 'true');
+      Object.assign(mirror.style, { position: 'fixed', left: '-10000px', top: '0', visibility: 'hidden', pointerEvents: 'none', whiteSpace: 'pre-wrap', overflowWrap: 'break-word', boxSizing: 'border-box', width: area.clientWidth + 'px' });
+      ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'wordSpacing', 'textIndent', 'lineHeight', 'tabSize', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].forEach((key) => { mirror.style[key] = style[key]; });
+      mirror.textContent = area.value.slice(0, area.selectionStart);
+      const marker = document.createElement('span'); marker.textContent = '\u200b'; mirror.append(marker);
+      document.body.append(mirror);
+      const caret = marker.getBoundingClientRect();
+      const bounds = mirror.getBoundingClientRect();
+      const left = area.offsetLeft + area.clientLeft + caret.left - bounds.left - area.scrollLeft;
+      const top = area.offsetTop + area.clientTop + caret.top - bounds.top - area.scrollTop;
+      mirror.remove();
+      const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.75;
+      const minTop = area.offsetTop + area.clientTop;
+      const maxTop = minTop + area.clientHeight - lineHeight;
+      const caretTop = Math.max(minTop, Math.min(top, maxTop));
+      let popupTop = caretTop + lineHeight;
+      const wrapperTop = area.parentElement.getBoundingClientRect().top;
+      if (wrapperTop + popupTop + popup.offsetHeight > window.innerHeight - 10) popupTop = Math.max(10 - wrapperTop, caretTop - popup.offsetHeight);
+      popup.style.left = Math.max(6, Math.min(left, area.offsetWidth - popup.offsetWidth - 6)) + 'px';
+      popup.style.top = popupTop + 'px';
+    }
+
+    function updateFieldSuggestions() {
+      const area = $('body-editor');
+      if (!draft || bodyComposing || document.activeElement !== area) { closeFieldSuggestions(); return; }
+      const match = fieldMentionAtCursor();
+      if (!match) { closeFieldSuggestions(); return; }
+      if (dismissedFieldMention && match.start === dismissedFieldMention.start && match.end === dismissedFieldMention.end && match.query === dismissedFieldMention.query) { closeFieldSuggestions(); return; }
+      dismissedFieldMention = null;
+      const normalize = (value) => value.toLocaleLowerCase().replace(/\s+/g, '');
+      const fields = draft.fields.filter((field) => normalize(field.label).includes(normalize(match.query)));
+      const activeId = fieldMention?.fields[fieldMention.index]?.id;
+      const index = fieldMention?.start === match.start && fieldMention.query === match.query ? Math.max(0, fields.findIndex((field) => field.id === activeId)) : 0;
+      fieldMention = { ...match, fields, index };
+      const popup = $('field-suggestions'); popup.replaceChildren(); popup.hidden = false;
+      area.removeAttribute('aria-activedescendant');
+      fields.forEach((field, optionIndex) => {
+        const option = document.createElement('button');
+        option.type = 'button'; option.className = 'field-option'; option.id = 'field-option-' + optionIndex; option.tabIndex = -1;
+        option.setAttribute('role', 'option'); option.setAttribute('aria-selected', String(optionIndex === index));
+        option.textContent = field.label;
+        option.addEventListener('mousedown', (event) => event.preventDefault());
+        option.addEventListener('click', () => chooseFieldSuggestion(field.id));
+        popup.append(option);
+      });
+      if (fields.length) area.setAttribute('aria-activedescendant', 'field-option-' + index);
+      else {
+        const hint = document.createElement('p'); hint.className = 'muted field-suggestion-empty'; hint.setAttribute('role', 'status');
+        hint.textContent = draft.fields.length ? '일치하는 항목이 없습니다.' : '왼쪽에서 항목을 먼저 추가하세요.';
+        popup.append(hint);
+      }
+      positionFieldSuggestions();
+    }
+
+    function insertFieldToken(field, start, end) {
+      if (!draft) return;
+      const area = $('body-editor');
+      closeFieldSuggestions();
+      area.setRangeText('[' + field.label + ']', start, end, 'end');
+      draft.body = area.value;
+      area.focus(); rememberBodyCursor(); dirtyEditor(); checkTemplate();
+    }
+
+    function chooseFieldSuggestion(fieldId) {
+      const match = fieldMentionAtCursor();
+      if (!draft || !fieldMention || !match || match.start !== fieldMention.start || match.end !== fieldMention.end || match.query !== fieldMention.query) { closeFieldSuggestions(); return; }
+      const field = draft.fields.find((item) => item.id === fieldId);
+      if (field) insertFieldToken(field, match.start, match.end);
+    }
+
+    function handleFieldSuggestionKey(event) {
+      if (!fieldMention || bodyComposing || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === 'Escape') { event.preventDefault(); dismissedFieldMention = { start: fieldMention.start, end: fieldMention.end, query: fieldMention.query }; closeFieldSuggestions(); return; }
+      if (!fieldMention.fields.length) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        fieldMention.index = (fieldMention.index + (event.key === 'ArrowDown' ? 1 : -1) + fieldMention.fields.length) % fieldMention.fields.length;
+        const options = $('field-suggestions').querySelectorAll('[role=option]');
+        options.forEach((option, index) => option.setAttribute('aria-selected', String(index === fieldMention.index)));
+        const active = options[fieldMention.index];
+        $('body-editor').setAttribute('aria-activedescendant', active.id);
+        active.scrollIntoView?.({ block: 'nearest' });
+      } else if (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey)) {
+        event.preventDefault(); chooseFieldSuggestion(fieldMention.fields[fieldMention.index].id);
+      }
+    }
+
+    function checkTemplate() {
+      const unknown = renderDocument(draft, {}).unknown;
+      $('template-check').textContent = unknown.length ? '미등록 항목: ' + unknown.map((name) => '[' + name + ']').join(', ') : '등록된 항목 ' + draft.fields.length + '개';
+      $('template-check').className = 'muted' + (unknown.length ? ' error' : '');
+    }
+
+    function applyEditor(announce = true) {
+      if (!draft) return true;
+      try {
+        const invalid = $('field-editor-list').querySelector('input:invalid');
+        if (invalid) { invalid.reportValidity(); return false; }
+        draft.title = $('editor-title').value; draft.body = $('body-editor').value;
+        if (!draft.title.trim()) throw new Error('양식 이름을 입력하세요.');
+        if (!draft.body.trim()) throw new Error('문서 틀을 입력하세요.');
+        const normalized = normalizeTemplate(draft);
+        const index = library.templates.findIndex((item) => item.id === normalized.id);
+        if (index < 0) library.templates.push(normalized); else library.templates[index] = normalized;
+        library.activeId = normalized.id; draft = null; editorDirty = false; answers = Object.create(null); markChanged(); render();
+        if (announce) status('양식을 적용했습니다. 다른 컴퓨터로 옮기기 전 상단의 저장 아이콘을 누르세요.');
+        return true;
+      } catch (error) { status(error.message, true); return false; }
+    }
+
+    function addField(type) {
+      if (!draft || !Object.hasOwn(types, type)) return;
+      if (draft.fields.length >= MAX_FIELDS) { status('항목은 양식당 최대 ' + MAX_FIELDS + '개까지 만들 수 있습니다.', true); return; }
+      let number = draft.fields.length + 1; while (draft.fields.some((field) => field.label === '항목' + number)) number++;
+      draft.fields.push({ id: id(), label: '항목' + number, type, options: type === 'multi' || type === 'single' ? ['선택지1', '선택지2'] : [], placeholder: '', emptyText: '', separator: ', ' });
+      dirtyEditor(); renderEditor();
+      const input = $('field-editor-list').lastElementChild.querySelector('[data-key=label]'); input.focus(); input.select();
+    }
+
+    function portableData() {
+      return { ...clone(library), exportId: id(), exportedAt: new Date().toISOString() };
+    }
+
+    function serializePortableHtml(data) {
+      const documentCopy = shell.cloneNode(true);
+      documentCopy.querySelector('#saved-data').textContent = JSON.stringify(data).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+      return '<!doctype html>\n' + documentCopy.outerHTML;
+    }
+
+    function download(content, filename, mime) {
+      const blob = new Blob([content], { type: mime }); const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = filename; document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+
+    // Remembering the handle is optional. It never grants or bypasses permission.
+    function handleStore(mode, handle = null) {
+      return new Promise((resolve) => {
+        if (!globalThis.indexedDB) { resolve(null); return; }
+        let database;
+        try {
+          const request = indexedDB.open('form-notepad-files', 1);
+          request.onupgradeneeded = () => request.result.createObjectStore('handles');
+          request.onerror = () => resolve(null);
+          request.onblocked = () => resolve(null);
+          request.onsuccess = () => {
+            database = request.result;
+            database.onversionchange = () => database.close();
+            try {
+              const transaction = database.transaction('handles', mode);
+              const store = transaction.objectStore('handles');
+              const operation = mode === 'readonly' ? store.get(cacheKey) : (handle ? store.put(handle, cacheKey) : store.delete(cacheKey));
+              let result = null;
+              operation.onsuccess = () => { result = operation.result || null; };
+              transaction.oncomplete = () => { database.close(); resolve(result); };
+              transaction.onabort = transaction.onerror = () => { database.close(); resolve(null); };
+            } catch { database.close(); resolve(null); }
+          };
+        } catch { database?.close(); resolve(null); }
+      });
+    }
+
+    function libraryFromHtml(text) {
+      const match = text.match(/<script\b[^>]*\bid\s*=\s*["']saved-data["'][^>]*>([\s\S]*?)<\/script\s*>/i);
+      if (!match) throw new Error('양식 메모장의 HTML 파일을 선택하세요.');
+      return readLibrary(JSON.parse(match[1]));
+    }
+
+    async function saveHtml() {
+      if (saving) return;
+      if (typeof window.showOpenFilePicker !== 'function') {
+        status('이 브라우저는 원본 파일 저장을 지원하지 않습니다. Chrome 또는 Edge에서 HTML 파일을 열어주세요. 양식은 내보내기 아이콘으로 백업할 수 있습니다.', true);
+        return;
+      }
+      if (!applyEditor(false)) return;
+      saving = true; updateFileStatus();
+      let writable = null;
+      let phase = 'select';
+      try {
+        let handle = fileHandle;
+        if (!handle) {
+          status('현재 열어둔 HTML 파일을 선택하세요. 선택한 원본 파일에 양식을 저장합니다.');
+          [handle] = await window.showOpenFilePicker({ id: 'form-notepad-current-file', multiple: false, excludeAcceptAllOption: true, types: [{ description: '현재 사용 중인 HTML 파일', accept: { 'text/html': ['.html', '.htm'] } }] });
+        }
+        if (!handle || typeof handle.getFile !== 'function' || typeof handle.createWritable !== 'function') throw new Error('저장할 HTML 파일을 선택하세요.');
+        phase = 'permission';
+        if (typeof handle.queryPermission === 'function' && await handle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+          if (typeof handle.requestPermission !== 'function' || await handle.requestPermission({ mode: 'readwrite' }) !== 'granted') throw new Error('파일 쓰기 권한이 허용되지 않았습니다. 변경사항은 그대로 남아 있습니다.');
+        }
+        phase = 'read';
+        const file = await handle.getFile();
+        if (!/\.html?$/i.test(file.name) || file.size > 15000000) throw new Error('현재 사용 중인 HTML 파일을 선택하세요.');
+        const currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
+        if (location.protocol === 'file:' && currentName && file.name !== currentName) throw new Error('현재 열린 파일은 ‘' + currentName + '’입니다. 같은 이름의 원본 파일을 선택하세요.');
+        const source = await file.text();
+        const diskLibrary = libraryFromHtml(source);
+        if (diskLibrary.libraryId !== library.libraryId || diskLibrary.exportId !== diskExportId || (lastWrittenHtml !== null && source !== lastWrittenHtml)) {
+          throw new Error('현재 열린 내용과 선택한 파일이 다르거나 파일이 다른 곳에서 변경되었습니다. 덮어쓰지 않았습니다. 양식을 내보내기로 백업한 뒤 최신 HTML 파일을 다시 열어주세요.');
+        }
+        fileHandle = handle;
+        phase = 'write';
+        const data = portableData();
+        const contents = serializePortableHtml(data);
+        writable = await handle.createWritable({ mode: 'exclusive' });
+        await writable.write(contents);
+        await writable.close();
+        writable = null;
+        lastWrittenHtml = contents;
+        diskExportId = data.exportId;
+        library.exportId = data.exportId;
+        library.exportedAt = data.exportedAt;
+        changed = libraryFingerprint(library) !== libraryFingerprint(data);
+        if (changed) persistRecovery();
+        else { try { localStorage.removeItem(cacheKey); } catch { /* Optional recovery only. */ } }
+        void handleStore('readwrite', handle);
+        status('‘' + handle.name + '’ 파일에 저장했습니다.' + (changed || editorDirty ? ' 저장 도중 추가한 변경사항은 한 번 더 저장하세요.' : ''));
+      } catch (error) {
+        if (writable) { try { await writable.abort(); } catch { /* A failed stream may already be closed. */ } }
+        if (phase === 'read' || error.name === 'NotFoundError') { fileHandle = null; lastWrittenHtml = null; void handleStore('readwrite'); }
+        if (error.name === 'AbortError' && phase === 'select') status('저장을 취소했습니다. 변경사항은 그대로 남아 있습니다.');
+        else status('저장하지 못했습니다: ' + (error.name === 'NotAllowedError' || error.name === 'SecurityError' ? '파일 쓰기 권한을 허용한 뒤 다시 저장해주세요.' : error.message), true);
+      } finally { saving = false; updateFileStatus(); }
+    }
+
+    async function copyOutput() {
+      const text = $('output').value;
+      if (!text) return;
+      try { if (!navigator.clipboard?.writeText) throw new Error('fallback'); await navigator.clipboard.writeText(text); status('완성본을 복사했습니다.'); }
+      catch {
+        const output = $('output'); output.focus(); output.select();
+        let copied = false; try { copied = document.execCommand('copy'); } catch { /* Manual copy remains available. */ }
+        status(copied ? '완성본을 복사했습니다.' : '완성본을 선택했습니다. Ctrl+C(또는 ⌘C)를 눌러 복사하세요.');
+      }
+    }
+
+    async function importJson(file) {
+      if (!file) return;
+      try {
+        if (file.size > 10000000) throw new Error('10MB 이하의 양식 백업 파일을 선택하세요.');
+        const imported = readLibrary(JSON.parse(await file.text()));
+        if (!imported.templates.length && !imported.trash.length) throw new Error('가져올 양식이 없습니다.');
+        if (library.templates.length + imported.templates.length > MAX_TEMPLATES) throw new Error('가져온 후 양식 수가 ' + MAX_TEMPLATES + '개를 초과합니다.');
+        if (library.trash.length + imported.trash.length > MAX_TRASH) throw new Error('가져온 후 휴지통의 양식 수가 한도를 초과합니다.');
+        if (imported.templates.length && draft && !confirm('편집 중인 변경사항을 취소하고 백업 양식을 추가할까요?')) return;
+        const additions = imported.templates.map((item) => ({ ...item, id: id() }));
+        const trashAdditions = imported.trash.map((item) => ({ ...item, id: id() }));
+        const description = additions.length + '개의 양식' + (trashAdditions.length ? '과 휴지통의 양식 ' + trashAdditions.length + '개' : '');
+        if (!confirm(description + '를 추가할까요? 현재 양식은 그대로 유지됩니다.')) return;
+        library.templates.push(...additions); library.trash.push(...trashAdditions);
+        if (additions.length) { library.activeId = additions[0].id; draft = null; editorDirty = false; answers = Object.create(null); }
+        markChanged();
+        if (additions.length) render(); else renderList();
+        status(additions.length + '개 양식을 추가했습니다.' + (trashAdditions.length ? ' 휴지통에도 ' + trashAdditions.length + '개를 추가했습니다.' : '') + ' 상단의 저장 아이콘을 눌러 파일에 담아두세요.');
+      } catch (error) { status('가져오기 실패: ' + error.message, true); }
+      finally { $('import-file').value = ''; }
+    }
+
+    $('new-template').addEventListener('click', () => beginEdit(true));
+    $('empty-new').addEventListener('click', () => beginEdit(true));
+    $('search').addEventListener('input', (event) => { search = event.target.value; renderList(); });
+    $('template-list').addEventListener('dragover', (event) => {
+      if (!draggedTemplateId) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+      clearDropIndicator();
+      const position = templateDropPosition(event.clientY);
+      if (position && position.templateId !== draggedTemplateId) position.row.classList.add(position.after ? 'drop-after' : 'drop-before');
+    });
+    $('template-list').addEventListener('dragleave', (event) => {
+      if (!$('template-list').contains(event.relatedTarget)) clearDropIndicator();
+    });
+    $('template-list').addEventListener('drop', (event) => {
+      if (!draggedTemplateId) return;
+      event.preventDefault();
+      const templateId = draggedTemplateId;
+      const position = templateDropPosition(event.clientY);
+      endTemplateDrag();
+      if (position) moveTemplate(templateId, position.templateId, position.after);
+    });
+    $('editor-title').addEventListener('input', (event) => { if (draft) { draft.title = event.target.value; dirtyEditor(); } });
+    $('body-editor').addEventListener('input', (event) => { rememberBodyCursor(); if (draft) { draft.body = event.target.value; dirtyEditor(); checkTemplate(); updateFieldSuggestions(); } });
+    ['select', 'click', 'focus'].forEach((type) => $('body-editor').addEventListener(type, () => { rememberBodyCursor(); updateFieldSuggestions(); }));
+    $('body-editor').addEventListener('keyup', (event) => { rememberBodyCursor(); if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key) || (!fieldMention && ['ArrowUp', 'ArrowDown'].includes(event.key))) updateFieldSuggestions(); });
+    $('body-editor').addEventListener('blur', (event) => { rememberBodyCursor(); if (!$('field-suggestions').contains(event.relatedTarget)) closeFieldSuggestions(); });
+    $('body-editor').addEventListener('keydown', handleFieldSuggestionKey);
+    $('body-editor').addEventListener('compositionstart', () => { bodyComposing = true; closeFieldSuggestions(); });
+    $('body-editor').addEventListener('compositionend', () => { bodyComposing = false; updateFieldSuggestions(); });
+    $('body-editor').addEventListener('scroll', positionFieldSuggestions);
+    window.addEventListener('resize', positionFieldSuggestions);
+    document.addEventListener('pointerdown', (event) => { if (!$('body-editor').parentElement.contains(event.target)) closeFieldSuggestions(); });
+    document.querySelectorAll('[data-add-type]').forEach((button) => button.addEventListener('click', () => addField(button.dataset.addType)));
+    $('apply-template').addEventListener('click', () => applyEditor());
+    $('cancel-edit').addEventListener('click', () => { if (editorDirty && !confirm('편집 중인 변경사항을 취소할까요?')) return; draft = null; editorDirty = false; render(); });
+    $('save-html').addEventListener('click', saveHtml);
+    $('copy-output').addEventListener('click', copyOutput);
+    $('clear-inputs').addEventListener('click', () => { if (hasAnswers() && !confirm('현재 입력·선택한 내용을 모두 초기화할까요?')) return; answers = Object.create(null); render(); status('입력 내용을 초기화했습니다.'); });
+    $('export-json').addEventListener('click', () => { if (!applyEditor(false)) return; download(JSON.stringify(portableData(), null, 2), '양식메모장-백업.json', 'application/json;charset=utf-8'); status('양식 설정을 JSON으로 백업했습니다.'); });
+    $('import-json').addEventListener('click', () => $('import-file').click());
+    $('import-file').addEventListener('change', (event) => importJson(event.target.files?.[0]));
+    $('recover').addEventListener('click', () => { if (!recoverable) return; library = recoverable; answers = Object.create(null); markChanged(); $('recovery').hidden = true; render(); status('양식 변경사항을 복구했습니다. HTML로 저장해두세요.'); });
+    $('ignore-recovery').addEventListener('click', () => { $('recovery').hidden = true; recoverable = null; });
+    document.addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); saveHtml(); } });
+    window.addEventListener('beforeunload', (event) => { if (changed || editorDirty || saving || hasAnswers()) { event.preventDefault(); event.returnValue = true; } });
+
+    try {
+      const cache = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (cache?.baseExportId === diskExportId) { const recovered = readLibrary(cache.library); if (libraryFingerprint(recovered) !== libraryFingerprint(library)) { recoverable = recovered; $('recovery').hidden = false; } }
+    } catch { /* Local file storage can be unavailable; embedded templates still work. */ }
+    render();
+    void handleStore('readonly').then((handle) => { if (!fileHandle && !saving && handle && typeof handle.getFile === 'function') { fileHandle = handle; updateFileStatus(); } });
+  })();
+  </script>
+</body>
+</html>
