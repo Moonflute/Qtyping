@@ -60,7 +60,10 @@
     .error { color: #9d2323; }
     .editor-grid { display: grid; grid-template-columns: minmax(250px, 1fr) minmax(270px, 1fr); gap: 22px; margin-top: 15px; }
     .wide { width: 100%; }
-    #editor-title { max-width: 480px; }
+    #editor-title { flex: 1 1 240px; min-width: 0; max-width: 480px; }
+    .field-editor-heading { margin-bottom: 8px; }
+    .field-editor-heading h3 { margin: 0; }
+    .field-editor-heading button { padding: 1px 6px; }
     .field-card { border: 1px solid #bbb; padding: 11px; margin: 10px 0; }
     .field-title { min-width: 0; flex: 1; overflow-wrap: anywhere; }
     .field-card label { display: block; font-size: 12px; margin-top: 7px; }
@@ -162,18 +165,14 @@
 
       <section id="edit-view" aria-label="양식 편집" hidden>
         <div class="row editor-actions">
-          <h2 id="edit-heading">양식 편집</h2>
+          <input id="editor-title" type="text" aria-label="양식 이름" maxlength="120" placeholder="양식 이름">
           <button id="apply-template" type="button"><strong>편집 완료</strong></button>
           <button id="cancel-edit" type="button">취소</button>
         </div>
-        <p class="muted">다른 컴퓨터로 옮기기 전에는 위의 저장 아이콘을 누르세요.</p>
-        <p><label for="editor-title">양식 이름</label></p>
-        <input id="editor-title" class="wide" type="text" maxlength="120" placeholder="예: 초진 기록">
         <div class="editor-grid">
           <section aria-label="항목 설정">
-            <h3>1. 입력할 항목 만들기</h3>
-            <div class="row">
-              <span>항목 추가:</span>
+            <div class="row field-editor-heading">
+              <h3>1. 입력할 항목 만들기</h3>
               <button type="button" data-add-type="multi">선택형</button>
               <button type="button" data-add-type="textarea">입력형</button>
             </div>
@@ -560,7 +559,6 @@
     function renderEditor() {
       closeFieldSuggestions();
       dismissedFieldMention = null; bodyComposing = false;
-      $('edit-heading').textContent = draftIsNew ? '새 양식 만들기' : '양식 편집';
       $('editor-title').value = draft.title; $('body-editor').value = draft.body;
       const cards = $('field-editor-list'); cards.replaceChildren();
       draft.fields.forEach((field, index) => {
