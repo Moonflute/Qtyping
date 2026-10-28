@@ -647,7 +647,7 @@
           (isChoice ? '<label class="single-choice-toggle"><input type="checkbox" data-single-choice aria-label="' + esc(field.label) + ' 단일 선택"' + (field.type === 'single' ? ' checked' : '') + '>단일 선택</label><label class="choice-separator"' + (field.type === 'single' ? ' hidden' : '') + '>나열 표기<input type="text" data-key="separator" value="' + esc(field.separator) + '" placeholder=","></label>' : '') +
           '<button type="button" class="small-button" data-action="up" aria-label="' + esc(field.label) + ' 위로" ' + (index === 0 ? 'disabled' : '') + '>↑</button><button type="button" class="small-button" data-action="down" aria-label="' + esc(field.label) + ' 아래로" ' + (index === draft.fields.length - 1 ? 'disabled' : '') + '>↓</button><button type="button" class="small-button" data-action="remove">항목 삭제</button></div></div>' +
           '<label>항목 이름<input type="text" data-key="label" value="' + esc(field.label) + '" maxlength="80"></label>' +
-          (isChoice ? '<label>선택지 (줄바꿈 또는 / 로 구분)<textarea data-key="options" rows="3" placeholder="고혈압 / 당뇨 / 고지혈증">' + esc(field.options.join('\n')) + '</textarea></label>' : '<label>입력 안내 (예시)<input type="text" data-key="placeholder" value="' + esc(field.placeholder) + '"></label>');
+          (isChoice ? '<label>선택지 (줄바꿈 또는 / 로 구분)<textarea data-key="options" rows="3">' + esc(field.options.join('\n')) + '</textarea></label>' : '<label>입력 안내 (예시)<input type="text" data-key="placeholder" value="' + esc(field.placeholder) + '"></label>');
         const singleChoice = card.querySelector('[data-single-choice]');
         singleChoice?.addEventListener('change', () => {
           field.type = singleChoice.checked ? 'single' : 'multi';
@@ -867,7 +867,7 @@
       if (!draft || !Object.hasOwn(types, type)) return;
       if (draft.fields.length >= MAX_FIELDS) { status('항목은 양식당 최대 ' + MAX_FIELDS + '개까지 만들 수 있습니다.', true); return; }
       let number = draft.fields.length + 1; while (draft.fields.some((field) => field.label === '항목' + number)) number++;
-      draft.fields.push({ id: id(), label: '항목' + number, type, options: type === 'multi' || type === 'single' ? ['선택지1', '선택지2'] : [], placeholder: '', emptyText: '', separator: ', ' });
+      draft.fields.push({ id: id(), label: '항목' + number, type, options: [], placeholder: '', emptyText: '', separator: ', ' });
       dirtyEditor(); renderEditor();
       const input = $('field-editor-list').lastElementChild.querySelector('[data-key=label]'); input.focus(); input.select();
     }
